@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    name: pytest (Python ${{ matrix.python }})
+    name: pytest (${{ matrix.os }}, py${{ matrix.python }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

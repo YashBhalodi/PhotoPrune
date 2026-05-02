@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest an enhancement or new flag.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: The user-facing situation that doesn't work today. Skip the proposed solution for a moment.
+      placeholder: "When I have a folder with..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Sketch the API / flag / UX you have in mind. Concrete > abstract.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What did you try? What other shapes of the feature did you reject and why?
+
+  - type: checkboxes
+    id: scope-check
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I read the [PRD](../PRD.md) and confirm the request is in scope, or I'm explicitly proposing an extension.
+          required: true
+        - label: I searched existing issues and didn't find a duplicate.
+          required: true

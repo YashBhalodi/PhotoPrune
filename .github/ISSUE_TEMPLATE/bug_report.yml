@@ -1,0 +1,76 @@
+name: Bug report
+description: Something doesn't work the way the README says it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Please don't include actual photo paths or
+        contents from your library — synthesize the report on a small test
+        directory if you can.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Plain-English description of the bug. What did you expect, what did you see?
+      placeholder: "I ran `photoprune ~/test`, expected X, got Y."
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: A minimal reproducer. Even better if it's a synthetic test directory.
+      placeholder: |
+        1. mkdir /tmp/repro && cp ...
+        2. photoprune /tmp/repro --threshold 0.8
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: photoprune --version
+      placeholder: "photoprune, version 0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: Install method
+      options:
+        - Homebrew (tap)
+        - From source (uv tool install)
+        - From source (pip / pipx)
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS + version
+      placeholder: "macOS 14.5 (Apple Silicon) / Ubuntu 22.04 / ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant terminal output
+      description: Wrap in triple backticks. Strip personally identifying paths if possible.
+      render: shell
+
+  - type: checkboxes
+    id: tos
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I searched existing issues and didn't find a duplicate.
+          required: true
+        - label: I redacted any personal photo paths or filenames.
+          required: true
