@@ -28,7 +28,7 @@ uv run photoprune ~/Pictures/Trip
 ## What we'll merge
 
 - Bug fixes with a regression test.
-- Small, well-scoped features that fit the [PRD](PRD.md). New flags or modes need a clear use case.
+- Small, well-scoped features that fit PhotoPrune's offline-CLI niche. New flags or modes need a clear use case.
 - Performance improvements with a measurable before/after.
 - Documentation improvements.
 
