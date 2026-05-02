@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "photodedupe"
+version = "0.1.0"
+description = "Local, offline CLI tool for finding near-duplicate photos."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "PhotoPrune Contributors" }]
+keywords = ["photos", "duplicates", "deduplication", "clip", "phash"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "open-clip-torch>=2.20",
+    "faiss-cpu>=1.7.4",
+    "Pillow>=10.0",
+    "imagehash>=4.3",
+    "numpy>=1.24",
+    "tqdm>=4.65",
+    "click>=8.1",
+    "opencv-python-headless>=4.8",
+]
+
+[project.optional-dependencies]
+heic = ["pillow-heif>=0.13"]
+dev = ["pytest>=7.4"]
+
+[project.scripts]
+photodedupe = "photodedupe.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["photodedupe*"]
+exclude = ["tests*"]

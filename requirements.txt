@@ -1,0 +1,10 @@
+torch>=2.0
+torchvision>=0.15
+open-clip-torch>=2.20
+faiss-cpu>=1.7.4
+Pillow>=10.0
+imagehash>=4.3
+numpy>=1.24
+tqdm>=4.65
+click>=8.1
+opencv-python-headless>=4.8
