@@ -4,6 +4,15 @@ All notable changes to PhotoPrune will be documented here. The format follows [K
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-02
+
+### Changed
+- Model caches (CLIP weights ~340 MB, MobileNetV2 ~14 MB) now download into `<install-prefix>/.cache/photoprune/` instead of the global `~/.cache/huggingface/` and `~/.cache/torch/`. Effect: `brew uninstall photoprune` is now genuinely clean — it reaches the model weights along with the rest of the venv. Old caches from 0.1.x still work; see the README's Uninstall section for how to reclaim that disk space.
+- Bumped to 0.2.0 to surface the cache-location change.
+
+### Added
+- README "Uninstall" section documenting brew + from-source removal and how to clean up per-album `.photoprune/` directories.
+
 ## [0.1.0] — 2026-05-02
 
 Initial public release.
@@ -19,5 +28,6 @@ Initial public release.
 - HEIC/iPhone photo support via the `[heic]` extra (bundled in the brew install).
 - Homebrew tap at [YashBhalodi/homebrew-photoprune](https://github.com/YashBhalodi/homebrew-photoprune) for one-command install on macOS / Linux.
 
-[Unreleased]: https://github.com/YashBhalodi/PhotoPrune/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/YashBhalodi/PhotoPrune/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/YashBhalodi/PhotoPrune/releases/tag/v0.2.0
 [0.1.0]: https://github.com/YashBhalodi/PhotoPrune/releases/tag/v0.1.0

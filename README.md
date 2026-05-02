@@ -106,6 +106,50 @@ The output dir is hidden (`.photoprune/`) so it doesn't clutter the album, and t
 
 `.jpg` `.jpeg` `.png` `.webp` `.bmp` `.tif` `.tiff` `.heic` (HEIC requires `pillow-heif`, bundled with the brew install).
 
+## Uninstall
+
+PhotoPrune is designed to leave nothing behind in places you can't see. Model weights download into the install prefix (not `~/.cache/`) so brew can clean them up along with everything else.
+
+### Homebrew
+
+```bash
+brew uninstall photoprune
+brew untap YashBhalodi/photoprune
+brew autoremove                     # removes Python 3.11 if no other formula needs it
+```
+
+That removes:
+- The ~880 MB venv (PyTorch, faiss, CLIP, etc.)
+- The CLIP and MobileNetV2 model weights downloaded on first run (cached inside the venv at `<prefix>/.cache/photoprune/`)
+- The `photoprune` and `photodedupe` commands from your PATH
+
+What it intentionally **leaves behind**:
+- `<album>/.photoprune/` directories — your per-album review reports, embedding caches, and `_trash/` folders. These hold *your data*, so PhotoPrune never auto-deletes them. Photos in `_trash/` can be moved back with `mv` once you're sure you don't need them.
+
+If you want to nuke every PhotoPrune output across your photo library, after the brew uninstall:
+
+```bash
+# Dry run — see what would be removed
+find ~/Pictures -type d -name '.photoprune'
+
+# Actually remove (review the list first!)
+find ~/Pictures -type d -name '.photoprune' -exec rm -rf {} +
+```
+
+### From-source install
+
+```bash
+uv tool uninstall photoprune        # if installed via `uv tool install`
+rm -rf ~/.cache/photoprune          # only present if you ran with HF_HOME unset
+```
+
+If you ever previously ran an older PhotoPrune (pre-0.2) that downloaded weights into the global Hugging Face / torch caches, you can also reclaim that space:
+
+```bash
+rm -rf ~/.cache/huggingface/hub/models--*clip*vit-b-32*
+rm -rf ~/.cache/torch/hub/checkpoints/mobilenet_v2*
+```
+
 ## Privacy
 
 PhotoPrune never uploads anything anywhere. The model weights are downloaded once on first run from the official Hugging Face / torchvision caches; everything after that is local. The HTML report is fully self-contained — base64 thumbnails, no external links — so it works offline and reveals nothing about your photos to network observers.
