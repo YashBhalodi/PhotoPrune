@@ -213,7 +213,6 @@ def _run_scan(cfg: Config) -> Path:
 
     cfg.output_dir.mkdir(parents=True, exist_ok=True)
     started_at = time.time()
-    interactive = sys.stdout.isatty() and sys.stdin.isatty()
 
     click.echo(f"Scanning {cfg.album_path} ...")
     photos = scan(cfg.album_path, exclude_dirs=[cfg.output_dir])
@@ -256,29 +255,26 @@ def _run_scan(cfg: Config) -> Path:
     click.echo(f"\nFound {len(groups)} duplicate group(s) covering {photos_in_groups} photos.")
     click.echo(f"Report: {report_path}")
 
-    if interactive:
-        webbrowser.open(report_path.as_uri())
+    # Interactive mode is now an explicit user choice (`--mode interactive`),
+    # so always open the browser and wait for selections. If a user wants
+    # non-blocking output, that's `--mode json` or `--mode text`.
+    webbrowser.open(report_path.as_uri())
 
-    removed = 0
-    if interactive:
-        sel = _wait_for_selections(cfg.output_dir, started_at=started_at)
-        if sel is None:
-            click.echo("\nSkipped cleanup. Apply later with:")
-            click.echo(f"  photoprune cleanup {cfg.output_dir}")
-            return report_path
-
-        target = cfg.output_dir / "selections.json"
-        if sel.resolve() != target.resolve():
-            shutil.move(str(sel), str(target))
-        click.echo(f"Selections received: {target}")
-        moved, skipped, audit = run_cleanup(cfg.output_dir)
-        removed = moved
-        click.echo(f"Moved {moved} file(s) to {cfg.output_dir}/_trash")
-        if skipped:
-            click.echo(f"Skipped {skipped} file(s) (see {audit})")
-    else:
-        click.echo("Open the report, click 'Save Selections', then run:")
+    sel = _wait_for_selections(cfg.output_dir, started_at=started_at)
+    if sel is None:
+        click.echo("\nSkipped cleanup. Apply later with:")
         click.echo(f"  photoprune cleanup {cfg.output_dir}")
+        return report_path
+
+    target = cfg.output_dir / "selections.json"
+    if sel.resolve() != target.resolve():
+        shutil.move(str(sel), str(target))
+    click.echo(f"Selections received: {target}")
+    moved, skipped, audit = run_cleanup(cfg.output_dir)
+    removed = moved
+    click.echo(f"Moved {moved} file(s) to {cfg.output_dir}/_trash")
+    if skipped:
+        click.echo(f"Skipped {skipped} file(s) (see {audit})")
 
     _print_summary(
         scanned=len(photos),

@@ -4,6 +4,23 @@ All notable changes to PhotoPrune will be documented here. The format follows [K
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-05-02
+
+### Changed (small CLI behavior change)
+
+- Removed TTY auto-detection. Mode is now the single source of truth.
+  - **Before:** in `--mode interactive`, if stdin/stdout weren't a TTY, photoprune silently skipped the auto-open and the watch-for-selections steps and just printed the report path.
+  - **After:** `--mode interactive` always opens the browser and waits for selections. Users who want non-blocking output should pick `--mode json` or `--mode text` explicitly.
+  - Affects only piped or backgrounded `--mode interactive` runs. The analytical modes are unchanged.
+
+### Added
+
+- `--mode text` and `--mode json` sample outputs in the README, plus guidance on when to use which: **json** when programmatically processing the result, **text** when reading or feeding to an LLM (more compact / token-efficient).
+
+### Fixed
+
+- "How it works" section no longer references `--phash-threshold` and `--model mobilenet` (both removed in 0.3.0).
+
 ## [0.4.0] — 2026-05-02
 
 ### Added
@@ -70,7 +87,8 @@ Initial public release.
 - HEIC/iPhone photo support via the `[heic]` extra (bundled in the brew install).
 - Homebrew tap at [YashBhalodi/homebrew-photoprune](https://github.com/YashBhalodi/homebrew-photoprune) for one-command install on macOS / Linux.
 
-[Unreleased]: https://github.com/YashBhalodi/PhotoPrune/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/YashBhalodi/PhotoPrune/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/YashBhalodi/PhotoPrune/releases/tag/v0.5.0
 [0.4.0]: https://github.com/YashBhalodi/PhotoPrune/releases/tag/v0.4.0
 [0.3.0]: https://github.com/YashBhalodi/PhotoPrune/releases/tag/v0.3.0
 [0.2.0]: https://github.com/YashBhalodi/PhotoPrune/releases/tag/v0.2.0
