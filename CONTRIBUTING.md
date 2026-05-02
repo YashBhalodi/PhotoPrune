@@ -72,15 +72,5 @@ The [release workflow](.github/workflows/release.yml) takes over from there:
 - Computes the source-tarball sha256.
 - Opens (and admin-merges) a PR on the [homebrew tap](https://github.com/YashBhalodi/homebrew-photoprune) that bumps the formula's `url` and `sha256`.
 
-### One-time setup for the tap update
-
-The cross-repo PR step needs a Personal Access Token (the default `GITHUB_TOKEN` is scoped to a single repo). Without it, the workflow still creates the GitHub release but skips the formula update with a warning.
-
-1. Create a PAT with `repo` scope at <https://github.com/settings/tokens>.
-2. Add it as a repo secret named `TAP_PAT`:
-   ```bash
-   gh secret set TAP_PAT --repo YashBhalodi/PhotoPrune --body "<paste-token>"
-   ```
-
-If you ever lose the secret, re-run those two steps. If the workflow fails for some other reason mid-release, the tag and GitHub release are already created — manually edit the formula via PR as a fallback (the manual flow that was in place pre-automation).
+If the workflow fails mid-release, the tag and GitHub release are already created — manually edit the formula via PR as a fallback for that one version.
 

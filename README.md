@@ -274,7 +274,7 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-The [release workflow](.github/workflows/release.yml) creates the GitHub release, computes the source-tarball sha256, and opens (and admin-merges) a bump PR on [the tap](https://github.com/YashBhalodi/homebrew-photoprune). See [CONTRIBUTING.md](CONTRIBUTING.md#cutting-a-release-maintainers) for the one-time `TAP_PAT` secret setup.
+The [release workflow](.github/workflows/release.yml) creates the GitHub release, computes the source-tarball sha256, and opens (and admin-merges) a bump PR on [the tap](https://github.com/YashBhalodi/homebrew-photoprune). See [CONTRIBUTING.md](CONTRIBUTING.md#cutting-a-release-maintainers) for the full flow.
 
 ## Acknowledgments
 
