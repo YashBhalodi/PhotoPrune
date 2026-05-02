@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import shutil
 import sys
+import tempfile
 import time
 import webbrowser
 from pathlib import Path
@@ -23,6 +24,7 @@ import click
 from . import __version__
 from .cleaner import cleanup as run_cleanup
 from .models import Config
+from .output import format_json, format_text
 from .pipeline import find_duplicate_groups
 from .reporter import render_report
 from .scanner import heic_supported, scan
@@ -126,11 +128,88 @@ def _print_summary(
 # ---------------------------------------------------------------------------
 
 
+def _resolve_album(album_path: Optional[str]) -> Path:
+    return Path(album_path).expanduser() if album_path else Path.cwd()
+
+
+def _validate_album(album: Path) -> None:
+    if not album.exists():
+        raise click.UsageError(f"Album path does not exist: {album}")
+    if not album.is_dir():
+        raise click.UsageError(f"Album path is not a directory: {album}")
+
+
+def _run_analytical(
+    *, album: Path, threshold: float, fmt: str
+) -> None:
+    """Run the pipeline and emit results to stdout. No persistent state.
+
+    `fmt` is "json" or "text". Status / progress messages go to stderr so
+    stdout is clean for piping into jq, an LLM context, etc.
+    """
+    _validate_album(album)
+    album = album.resolve()
+
+    click.echo(f"photoprune: scanning {album}", err=True)
+    photos = scan(album)
+    if not photos:
+        if not heic_supported():
+            click.echo(
+                "(HEIC support disabled — install with: pip install pillow-heif)",
+                err=True,
+            )
+        # Emit an empty-but-valid result so downstream parsers don't break.
+        if fmt == "json":
+            click.echo(
+                format_json(
+                    [], scanned=0, album_path=album, threshold=threshold
+                )
+            )
+        else:
+            click.echo(
+                format_text(
+                    [], scanned=0, album_path=album, threshold=threshold
+                )
+            )
+        return
+
+    click.echo(f"photoprune: encoding {len(photos)} photos with CLIP", err=True)
+    _model_load_notice_stderr()
+
+    # Analytical modes leave nothing on disk — caches and any other
+    # working state live inside a temp dir that gets cleaned up here.
+    with tempfile.TemporaryDirectory(prefix="photoprune-") as tmpdir:
+        groups = find_duplicate_groups(
+            photos,
+            output_dir=Path(tmpdir),
+            threshold=threshold,
+            progress=False,
+        )
+
+    rendered = (
+        format_json(
+            groups, scanned=len(photos), album_path=album, threshold=threshold
+        )
+        if fmt == "json"
+        else format_text(
+            groups, scanned=len(photos), album_path=album, threshold=threshold
+        )
+    )
+    click.echo(rendered)
+
+
+def _model_load_notice_stderr() -> None:
+    if _clip_already_cached():
+        click.echo("photoprune: loading model from cache", err=True)
+    else:
+        click.echo(
+            "photoprune: loading model — first-run download (~340 MB)",
+            err=True,
+        )
+
+
 def _run_scan(cfg: Config) -> Path:
-    if not cfg.album_path.exists():
-        raise click.UsageError(f"Album path does not exist: {cfg.album_path}")
-    if not cfg.album_path.is_dir():
-        raise click.UsageError(f"Album path is not a directory: {cfg.album_path}")
+    _validate_album(cfg.album_path)
 
     cfg.output_dir.mkdir(parents=True, exist_ok=True)
     started_at = time.time()
@@ -214,6 +293,19 @@ def _run_scan(cfg: Config) -> Path:
 @click.command("scan")
 @click.argument("album_path", type=click.Path(), required=False, default=None)
 @click.option(
+    "--mode",
+    type=click.Choice(["interactive", "json", "text"], case_sensitive=False),
+    default="interactive",
+    show_default=True,
+    help=(
+        "interactive: open a review report in the browser, watch for "
+        "Save Selections, then move flagged files to trash (default). "
+        "json / text: run the pipeline, print groups to stdout, leave "
+        "no files behind. Status messages go to stderr; the result goes "
+        "to stdout so it pipes cleanly into jq, an LLM, etc."
+    ),
+)
+@click.option(
     "--threshold",
     type=click.FloatRange(0.0, 1.0),
     default=0.94,
@@ -224,23 +316,34 @@ def _run_scan(cfg: Config) -> Path:
     "--output-dir",
     type=click.Path(),
     default=None,
-    help="Where to write report, cache, and trash. Default: <album>/.photoprune/",
+    help=(
+        "Where to write report, cache, and trash. Default: <album>/.photoprune/. "
+        "Only valid in --mode interactive (analytical modes use a temp dir)."
+    ),
 )
 def scan_cmd(
     album_path: Optional[str],
+    mode: str,
     threshold: float,
     output_dir: Optional[str],
 ) -> None:
     """Scan ALBUM_PATH (default: current directory) for duplicates."""
-    album = Path(album_path).expanduser() if album_path else Path.cwd()
-    out = Path(output_dir).expanduser() if output_dir else album / ".photoprune"
+    album = _resolve_album(album_path)
+    mode = mode.lower()
 
-    cfg = Config(
-        album_path=album,
-        output_dir=out,
-        threshold=threshold,
-    )
-    _run_scan(cfg)
+    if mode != "interactive" and output_dir is not None:
+        raise click.UsageError(
+            "--output-dir is only valid with --mode interactive. "
+            "Analytical modes (--mode json|text) use a temp dir and "
+            "leave no files behind."
+        )
+
+    if mode == "interactive":
+        out = Path(output_dir).expanduser() if output_dir else album / ".photoprune"
+        cfg = Config(album_path=album, output_dir=out, threshold=threshold)
+        _run_scan(cfg)
+    else:
+        _run_analytical(album=album, threshold=threshold, fmt=mode)
 
 
 # ---------------------------------------------------------------------------
@@ -300,20 +403,24 @@ def main() -> None:
     """PhotoPrune — find near-duplicate photos in a directory.
 
     \b
-    Most common usage — cd into your album and just run:
-
-        photoprune
-
-    PhotoPrune scans the current directory, opens a review report in your
-    browser, waits for you to click 'Save Selections', then moves the
-    flagged files to <album>/.photoprune/_trash/. Originals are never
-    hard-deleted.
+    Modes (--mode):
+      interactive  open a browser review, then auto-cleanup (default)
+      json         run pipeline, emit JSON to stdout, no residuals
+      text         run pipeline, emit human-readable text, no residuals
 
     \b
-    Other forms:
-        photoprune /path/to/photos          # scan a different directory
-        photoprune --threshold 0.90         # flag more aggressively
-        photoprune cleanup OUTPUT_DIR       # apply a saved selections.json
+    Common forms:
+      photoprune                              # interactive on cwd
+      photoprune /path/to/photos              # interactive on that dir
+      photoprune --threshold 0.90             # flag more aggressively
+      photoprune cleanup OUTPUT_DIR           # apply a saved selections.json
+
+    \b
+    For scripts / AI agents, use --mode json or --mode text. Status goes
+    to stderr; the result goes to stdout, so it pipes cleanly:
+      photoprune --mode json /path/to/photos
+      photoprune --mode json /path/to/photos | jq '.groups[].suggested_keep'
+      photoprune --mode text --threshold 0.85 /path/to/photos
     """
 
 
