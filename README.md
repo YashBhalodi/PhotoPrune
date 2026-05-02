@@ -67,26 +67,96 @@ cd ~/Pictures/My-Trip
 photoprune
 ```
 
-Press <kbd>Ctrl</kbd>+<kbd>C</kbd> to skip cleanup — the report and selections stay put for you to apply later with `photoprune cleanup OUTPUT_DIR`.
+Always opens the browser and waits for **Save & move N to trash**. Press <kbd>Ctrl</kbd>+<kbd>C</kbd> to skip cleanup — the report and selections stay put for you to apply later with `photoprune cleanup OUTPUT_DIR`.
 
-### JSON / text (for scripts and AI agents)
+### Analytical modes — for scripts and AI agents
 
-Status goes to stderr; the result goes to stdout, so it pipes cleanly:
+Both `json` and `text` modes:
 
-```bash
-# Get groups as JSON
-photoprune --mode json /path/to/photos
+- run the pipeline, emit groups to **stdout** (status to stderr)
+- leave **no files behind** (use a temp dir cleaned on exit)
+- behave identically whether attached to a terminal or piped
 
-# Pipe into jq
-photoprune --mode json ~/Pictures/Trip | jq -r '.groups[].suggested_keep'
+**When to pick which:**
 
-# Or as human-readable text
-photoprune --mode text --threshold 0.85 ~/Pictures/Trip
+- **`--mode json`** — pick this when *programmatically processing* the output. Schema is versioned, stable, and documented in [docs/json-schema.md](docs/json-schema.md). Pipes cleanly into `jq`, parses without ambiguity.
+- **`--mode text`** — pick this when *reading the output* (you in a terminal) or feeding it to an LLM. More compact and scannable than JSON; far fewer tokens; preserves the keep/trash structure that matters.
+
+#### `--mode text` sample output
+
+```
+album:     ~/Pictures/Istanbul
+threshold: 0.85    scanned: 13    groups: 2    photos in groups: 7
+
+Group 1  [near]  5 photos  max-sim 0.91
+  KEEP  ~/Pictures/Istanbul/IMG_20240905_104130.jpg  4000x1800  3.1MB  sharp 1727  q 0.91
+        ~/Pictures/Istanbul/IMG_20240905_110216.jpg  4608x2080  3.3MB  sharp 130   q 0.54
+        ~/Pictures/Istanbul/IMG_20240905_110122.jpg  4608x2080  3.0MB  sharp 126   q 0.52
+        ~/Pictures/Istanbul/IMG_20240908_115239.jpg  4000x1800  2.2MB  sharp 469   q 0.50
+        ~/Pictures/Istanbul/IMG_20240905_111558.jpg  4000x1800  2.0MB  sharp 205   q 0.41
+
+Group 2  [near]  2 photos  max-sim 0.86
+  KEEP  ~/Pictures/Istanbul/IMG_20240906_100953.jpg  1800x4000  2.6MB  sharp 321   q 1.00
+        ~/Pictures/Istanbul/IMG_20240906_103755.jpg  1800x4000  2.6MB  sharp 275   q 0.93
 ```
 
-The JSON schema is stable (versioned). See [docs/json-schema.md](docs/json-schema.md) for the full shape, or run with `--mode json` against an empty directory to see the minimal structure.
+#### `--mode json` sample output
 
-**Tip for AI agents:** `--mode json` is what you want. The output is deterministic given the same inputs, the schema is versioned, and the analytical modes leave no state on disk between calls. Status messages on stderr (`photoprune: scanning ...`, `photoprune: loading model from cache`) are safe to ignore.
+```json
+{
+  "version": "1",
+  "album_path": "~/Pictures/Istanbul",
+  "threshold": 0.85,
+  "scanned": 13,
+  "groups": [
+    {
+      "group_id": "1",
+      "detection_type": "near",
+      "size": 5,
+      "max_similarity": 0.9059,
+      "suggested_keep": "~/Pictures/Istanbul/IMG_20240905_104130.jpg",
+      "members": [
+        {
+          "path": "~/Pictures/Istanbul/IMG_20240905_104130.jpg",
+          "size_bytes": 3283035,
+          "width": 4000,
+          "height": 1800,
+          "sharpness": 1726.95,
+          "quality_rank": 0.9143,
+          "is_suggested_keep": true
+        },
+        {
+          "path": "~/Pictures/Istanbul/IMG_20240905_110216.jpg",
+          "size_bytes": 3476044,
+          "width": 4608,
+          "height": 2080,
+          "sharpness": 130.35,
+          "quality_rank": 0.5377,
+          "is_suggested_keep": false
+        }
+        // ... 3 more members
+      ]
+    }
+    // ... Group 2
+  ]
+}
+```
+
+(Real output is full absolute paths and complete arrays; trimmed here for readability. See [docs/json-schema.md](docs/json-schema.md) for every field.)
+
+#### Examples
+
+```bash
+# Get the suggested-keep path for every group
+photoprune --mode json ~/Pictures/Trip | jq -r '.groups[].suggested_keep'
+
+# Get every photo flagged for trash, one path per line
+photoprune --mode json ~/Pictures/Trip \
+  | jq -r '.groups[].members[] | select(.is_suggested_keep | not) | .path'
+
+# Human-readable summary
+photoprune --mode text --threshold 0.85 ~/Pictures/Trip
+```
 
 ### Common forms
 
@@ -107,12 +177,10 @@ photoprune cleanup ./.photoprune               # apply a previously saved select
 | `--threshold` | `0.94` | Cosine similarity cutoff for near-duplicate detection (0.0–1.0) |
 | `--output-dir` | `<album>/.photoprune/` | Where the report, cache, and trash live (interactive mode only) |
 
-In interactive mode, when stdin/stdout aren't a TTY (e.g., piped output, CI runs), PhotoPrune skips the auto-open and the watch-for-selections steps and just prints the report path. The `json` and `text` modes always behave the same way regardless of TTY.
-
 ## How it works
 
-1. **pHash** — A perceptual hash for every photo. Hashes within Hamming distance `--phash-threshold` are grouped (exact / near-identical re-encodes).
-2. **Embeddings** — Each photo passes through CLIP ViT-B/32 (or MobileNetV2 with `--model mobilenet`) to get a semantic vector. Vectors are cached to disk so re-runs only encode new or changed photos.
+1. **pHash** — A perceptual hash for every photo. Hashes within a small Hamming distance are grouped (exact / near-identical re-encodes).
+2. **Embeddings** — Each photo passes through CLIP ViT-B/32 to get a semantic vector. In interactive mode, vectors are cached to disk so re-runs only encode new or changed photos.
 3. **Faiss** — Builds an index over the vectors, finds pairs whose cosine similarity ≥ `--threshold`, and Union-Finds them into groups.
 4. **Quality scoring** — Within each group, photos are ranked by `0.5 · sharpness + 0.3 · resolution + 0.2 · filesize`. Sharpness is the variance of the Laplacian. The top-ranked photo is auto-suggested as the keeper.
 5. **Report** — A self-contained HTML report (base64 thumbnails, no CDN) opens in your browser. Each card is either **Keep** (highlighted) or **Trash** (quiet) — click to toggle. The ★ marks the auto-suggested keeper. Click **View** for a lightbox at full resolution; arrow keys navigate, <kbd>K</kbd> toggles, <kbd>Esc</kbd> closes.
