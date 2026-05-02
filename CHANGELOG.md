@@ -4,6 +4,25 @@ All notable changes to PhotoPrune will be documented here. The format follows [K
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-05-02
+
+### Added
+
+- `--mode` flag with three values: `interactive` (default; today's UX), `json`, and `text`.
+- `json` mode runs the pipeline and prints groups as a stable, versioned JSON object to stdout. Schema documented in [docs/json-schema.md](docs/json-schema.md). Designed to be LLM- and script-friendly: status messages go to stderr, the result goes to stdout, schema carries a `"version"` field.
+- `text` mode is the same idea but human-readable and parseable.
+- Both analytical modes (`json`, `text`) leave **no files behind** — the embedding cache lives in a `tempfile.TemporaryDirectory` that's cleaned up on exit. Useful for AI-agent calls that want a one-shot answer without polluting the album.
+- New `photoprune.output` module exposes `format_json` and `format_text` for library callers who want the formatters without going through the CLI.
+
+### Changed
+
+- Help text restructured to lead with the three modes.
+- `--output-dir` is rejected when combined with `--mode json|text` (no output dir is created — the temp dir is invisible).
+
+### Internal
+
+- 8 new tests covering the JSON schema, text formatting, and edge cases (empty albums, missing quality scores). Total now 34.
+
 ## [0.3.0] — 2026-05-02
 
 ### Removed (breaking, CLI surface only)
@@ -51,7 +70,8 @@ Initial public release.
 - HEIC/iPhone photo support via the `[heic]` extra (bundled in the brew install).
 - Homebrew tap at [YashBhalodi/homebrew-photoprune](https://github.com/YashBhalodi/homebrew-photoprune) for one-command install on macOS / Linux.
 
-[Unreleased]: https://github.com/YashBhalodi/PhotoPrune/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/YashBhalodi/PhotoPrune/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/YashBhalodi/PhotoPrune/releases/tag/v0.4.0
 [0.3.0]: https://github.com/YashBhalodi/PhotoPrune/releases/tag/v0.3.0
 [0.2.0]: https://github.com/YashBhalodi/PhotoPrune/releases/tag/v0.2.0
 [0.1.0]: https://github.com/YashBhalodi/PhotoPrune/releases/tag/v0.1.0

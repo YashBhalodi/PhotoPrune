@@ -52,19 +52,50 @@ uv tool install --editable ".[heic]"             # exposes photoprune on $PATH
 
 ## Usage
 
+PhotoPrune has three modes, picked with `--mode`:
+
+| Mode | What it does | Leaves files behind |
+|------|---|---|
+| `interactive` (default) | Opens an HTML review report in your browser, watches for **Save & move N to trash**, then moves flagged files to `<album>/.photoprune/_trash/`. Originals are never hard-deleted. | Yes — the per-album `.photoprune/` cache + trash. |
+| `json` | Runs the pipeline and prints groups as structured JSON to stdout. | No — uses a temp dir that's cleaned on exit. |
+| `text` | Same, but human-readable. | No. |
+
+### Interactive (default)
+
 ```bash
 cd ~/Pictures/My-Trip
 photoprune
 ```
 
-PhotoPrune scans the current directory, opens an HTML review report in your browser, waits for you to click **Save & move N to trash**, then moves the flagged files into `<album>/.photoprune/_trash/`. Press <kbd>Ctrl</kbd>+<kbd>C</kbd> at any point to skip cleanup — the report and selections stay put for you to apply later with `photoprune cleanup OUTPUT_DIR`.
+Press <kbd>Ctrl</kbd>+<kbd>C</kbd> to skip cleanup — the report and selections stay put for you to apply later with `photoprune cleanup OUTPUT_DIR`.
+
+### JSON / text (for scripts and AI agents)
+
+Status goes to stderr; the result goes to stdout, so it pipes cleanly:
+
+```bash
+# Get groups as JSON
+photoprune --mode json /path/to/photos
+
+# Pipe into jq
+photoprune --mode json ~/Pictures/Trip | jq -r '.groups[].suggested_keep'
+
+# Or as human-readable text
+photoprune --mode text --threshold 0.85 ~/Pictures/Trip
+```
+
+The JSON schema is stable (versioned). See [docs/json-schema.md](docs/json-schema.md) for the full shape, or run with `--mode json` against an empty directory to see the minimal structure.
+
+**Tip for AI agents:** `--mode json` is what you want. The output is deterministic given the same inputs, the schema is versioned, and the analytical modes leave no state on disk between calls. Status messages on stderr (`photoprune: scanning ...`, `photoprune: loading model from cache`) are safe to ignore.
 
 ### Common forms
 
 ```bash
-photoprune /path/to/photos          # scan a different directory
-photoprune --threshold 0.90         # flag more aggressively (default 0.94)
-photoprune cleanup ./.photoprune    # apply a previously saved selections.json
+photoprune /path/to/photos                     # interactive on that dir
+photoprune --threshold 0.90                    # flag more aggressively (default 0.94)
+photoprune --mode json /path/to/photos         # analytical, JSON to stdout
+photoprune --mode text /path/to/photos         # analytical, human-readable
+photoprune cleanup ./.photoprune               # apply a previously saved selections.json
 ```
 
 ### All flags
@@ -72,10 +103,11 @@ photoprune cleanup ./.photoprune    # apply a previously saved selections.json
 | Flag | Default | Description |
 |------|---------|-------------|
 | `album_path` | `.` | Directory to scan |
+| `--mode` | `interactive` | `interactive` / `json` / `text` |
 | `--threshold` | `0.94` | Cosine similarity cutoff for near-duplicate detection (0.0–1.0) |
-| `--output-dir` | `<album>/.photoprune/` | Where the report, cache, and trash live |
+| `--output-dir` | `<album>/.photoprune/` | Where the report, cache, and trash live (interactive mode only) |
 
-When stdin/stdout aren't a TTY (e.g., piped output, CI runs), PhotoPrune skips the auto-open and the watch-for-selections steps and just prints the report path so you can review later.
+In interactive mode, when stdin/stdout aren't a TTY (e.g., piped output, CI runs), PhotoPrune skips the auto-open and the watch-for-selections steps and just prints the report path. The `json` and `text` modes always behave the same way regardless of TTY.
 
 ## How it works
 
