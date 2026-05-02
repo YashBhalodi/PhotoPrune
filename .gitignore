@@ -29,3 +29,6 @@ Thumbs.db
 
 photodedupe_out/
 istambul_out*/
+
+# Sibling clone of the brew tap — kept here for convenience while iterating.
+homebrew-photoprune/
