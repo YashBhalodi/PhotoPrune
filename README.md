@@ -4,14 +4,28 @@ A local, offline CLI tool for finding near-duplicate photos in a directory and h
 
 ## Install
 
+### macOS / Linux (Homebrew)
+
 ```bash
-pip install -e .
+brew install YashBhalodi/photoprune/photoprune
+```
+
+This pulls in everything (Python, the model stack, etc.) into an isolated install — no setup required.
+
+### From source
+
+PhotoPrune uses [uv](https://docs.astral.sh/uv/) for development. Install uv (`brew install uv`) once, then:
+
+```bash
+git clone https://github.com/YashBhalodi/PhotoPrune.git
+cd PhotoPrune
+uv tool install --editable .          # exposes `photoprune` on $PATH
 ```
 
 For HEIC/iPhone photo support:
 
 ```bash
-pip install -e ".[heic]"
+uv tool install --editable ".[heic]"
 ```
 
 ## Usage
@@ -87,7 +101,26 @@ The output dir is hidden (`.photoprune/`) so it doesn't clutter the album, and t
 
 ## Development
 
+PhotoPrune uses [uv](https://docs.astral.sh/uv/) for dependency management. The repo ships a `uv.lock` for reproducible installs.
+
 ```bash
-pip install -e ".[dev,heic]"
-pytest
+brew install uv               # one-time
+uv sync --extra dev --extra heic
+uv run pytest
 ```
+
+Run the CLI from a checkout without installing:
+
+```bash
+uv run photoprune ~/Pictures/Trip
+```
+
+### Cutting a release
+
+```bash
+git tag vX.Y.Z
+git push origin vX.Y.Z
+gh release create vX.Y.Z --generate-notes
+```
+
+The Homebrew formula in [YashBhalodi/homebrew-photoprune](https://github.com/YashBhalodi/homebrew-photoprune) needs to be updated with the new version + sha256 (`shasum -a 256 <release-tarball>`).
