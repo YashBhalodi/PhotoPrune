@@ -45,10 +45,26 @@ def heic_supported() -> bool:
     return _HEIC_OK
 
 
-def iter_image_paths(root: Path) -> Iterable[Path]:
-    """Yield image file paths under root, sorted for deterministic ordering."""
+def iter_image_paths(
+    root: Path, *, exclude_dirs: Iterable[Path] = ()
+) -> Iterable[Path]:
+    """Yield image file paths under root, sorted for deterministic ordering.
+
+    Skips hidden directories (names starting with `.`) and any path under
+    `exclude_dirs` (resolved). This keeps our own output dir, `.git`,
+    macOS metadata, etc. out of the scan.
+    """
+    excluded = {Path(p).expanduser().resolve() for p in exclude_dirs}
     paths: List[Path] = []
-    for dirpath, _dirnames, filenames in os.walk(root, followlinks=False):
+    root = Path(root).resolve()
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        # Mutate dirnames in place so os.walk skips them.
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        if excluded:
+            current = Path(dirpath).resolve()
+            if any(current == ex or ex in current.parents for ex in excluded):
+                dirnames[:] = []
+                continue
         for name in filenames:
             ext = Path(name).suffix.lower()
             if ext in SUPPORTED_EXTENSIONS:
@@ -57,12 +73,17 @@ def iter_image_paths(root: Path) -> Iterable[Path]:
     return paths
 
 
-def scan(root: Path, *, warn_heic: bool = True) -> List[PhotoFile]:
+def scan(
+    root: Path,
+    *,
+    warn_heic: bool = True,
+    exclude_dirs: Iterable[Path] = (),
+) -> List[PhotoFile]:
     """Walk `root`, returning a PhotoFile for every readable image."""
     photos: List[PhotoFile] = []
     skipped_heic = 0
 
-    for path in iter_image_paths(root):
+    for path in iter_image_paths(root, exclude_dirs=exclude_dirs):
         ext = path.suffix.lower()
         if ext == ".heic" and not _HEIC_OK:
             skipped_heic += 1

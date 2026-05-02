@@ -1,6 +1,6 @@
 import numpy as np
 
-from photodedupe.indexer import cluster_pairs, find_similar_pairs
+from photoprune.indexer import cluster_pairs, find_similar_pairs
 
 
 def _normalize(x: np.ndarray) -> np.ndarray:

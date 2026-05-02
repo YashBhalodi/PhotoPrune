@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from photodedupe.cleaner import cleanup
+from photoprune.cleaner import cleanup
 
 
 def test_cleanup_moves_selected_files(tmp_path: Path, album_dir: Path) -> None:

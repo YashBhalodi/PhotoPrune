@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from photodedupe.scanner import scan
+from photoprune.scanner import scan
 
 
 def test_scan_finds_all_jpegs(album_dir: Path) -> None:

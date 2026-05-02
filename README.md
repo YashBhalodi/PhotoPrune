@@ -16,22 +16,47 @@ pip install -e ".[heic]"
 
 ## Usage
 
-```bash
-# Basic scan
-photodedupe /path/to/photos
+The fast path:
 
-# Faster, less accurate
-photodedupe /path/to/photos --model mobilenet
+```bash
+cd ~/Pictures/My-Trip
+photoprune
+```
+
+That's it. PhotoPrune scans the current directory, opens a review report in your browser, waits for you to click **Save Selections**, then moves the flagged files to `./.photoprune/_trash/`. Originals are never hard-deleted.
+
+### Flags
+
+```bash
+# Scan a different directory
+photoprune /path/to/photos
+
+# Faster, less accurate model
+photoprune --model mobilenet
 
 # Flag more aggressively
-photodedupe /path/to/photos --threshold 0.90
+photoprune --threshold 0.90
 
-# Auto-open the report in your browser
-photodedupe /path/to/photos --open-report
+# Don't auto-open the report
+photoprune --no-open
 
-# After reviewing the report, apply selections
-photodedupe cleanup ./photodedupe_out
+# Just produce the report and exit (don't wait for selections)
+photoprune --no-wait
+
+# Apply a selections.json that you saved earlier
+photoprune cleanup ./.photoprune
 ```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `album_path` | `.` | Directory to scan |
+| `--model` | `clip` | `clip` (accurate) or `mobilenet` (fast) |
+| `--threshold` | `0.94` | Cosine similarity cutoff (0.0–1.0) |
+| `--phash-threshold` | `10` | Hamming distance for exact-dupe detection |
+| `--output-dir` | `<album>/.photoprune/` | Where the report, cache, and trash live |
+| `--no-cache` | off | Re-encode all photos from scratch |
+| `--no-open` | off | Don't auto-open the HTML report |
+| `--no-wait` | off | Don't block waiting for selections.json |
 
 ### How it works
 
@@ -39,36 +64,22 @@ photodedupe cleanup ./photodedupe_out
 2. **Embeddings** — Pass each photo through CLIP ViT-B/32 (or MobileNetV2 with `--model mobilenet`) to get a semantic vector. Vectors are cached to disk so re-runs only encode new photos.
 3. **Faiss** — Build an index, find pairs whose cosine similarity ≥ `--threshold`, and Union-Find them into groups.
 4. **Quality scoring** — Within each group, photos are ranked by `0.5 × sharpness + 0.3 × resolution + 0.2 × filesize`. The top-ranked photo is auto-suggested as the keeper; the rest are pre-selected for removal.
-5. **Report** — A self-contained `duplicates_report.html` opens in your browser. Check or uncheck the photos to remove, then click **Save Selections** to download `selections.json`.
-6. **Cleanup** — `photodedupe cleanup` reads that file and moves flagged photos to `_trash/`. Originals are never hard-deleted.
-
-### CLI flags
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `album_path` | *(required)* | Path to photo directory |
-| `--model` | `clip` | `clip` (accurate) or `mobilenet` (fast) |
-| `--threshold` | `0.94` | Cosine similarity cutoff (0.0–1.0) |
-| `--phash-threshold` | `10` | Hamming distance for exact-dupe detection |
-| `--output-dir` | `./photodedupe_out` | Where to write the report and cache |
-| `--no-cache` | `False` | Re-encode all photos from scratch |
-| `--open-report` | `False` | Auto-open the HTML report |
+5. **Report** — A self-contained HTML report opens in your browser. Check or uncheck the photos to remove, then click **Save Selections**.
+6. **Auto-cleanup** — PhotoPrune watches your `~/Downloads/` and the output dir for the saved `selections.json`, then moves flagged photos to `_trash/`. `Ctrl-C` skips this step; you can run `photoprune cleanup OUTPUT_DIR` later instead.
 
 ### Output layout
 
 ```
-photodedupe_out/
+<album>/.photoprune/
 ├── duplicates_report.html
 ├── selections.json          # Created when you click "Save Selections"
-├── audit_log.csv            # Created by `cleanup`
+├── audit_log.csv            # Created by cleanup
 ├── embeddings_cache.npy
 ├── embeddings_manifest.json
 └── _trash/                  # Moved files (mirrors original directory layout)
 ```
 
-### Saving selections
-
-The HTML report runs entirely offline. Clicking **Save Selections** triggers a normal browser download of `selections.json`. Move that file into your `--output-dir` (replacing any existing one), then run `photodedupe cleanup ./photodedupe_out`.
+The output dir is hidden (`.photoprune/`) so it doesn't clutter the album, and the scanner ignores hidden directories so re-runs don't re-scan the trash.
 
 ### Supported formats
 

@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "photodedupe"
+name = "photoprune"
 version = "0.1.0"
 description = "Local, offline CLI tool for finding near-duplicate photos."
 readme = "README.md"
@@ -42,8 +42,9 @@ heic = ["pillow-heif>=0.13"]
 dev = ["pytest>=7.4"]
 
 [project.scripts]
-photodedupe = "photodedupe.cli:main"
+photoprune = "photoprune.cli:main"
+photodedupe = "photoprune.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["photodedupe*"]
+include = ["photoprune*"]
 exclude = ["tests*"]

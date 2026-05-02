@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from photodedupe.hasher import compute_phashes, group_by_phash
-from photodedupe.scanner import scan
+from photoprune.hasher import compute_phashes, group_by_phash
+from photoprune.scanner import scan
 
 
 def test_phash_groups_exact_duplicates(album_dir: Path) -> None:

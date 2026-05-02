@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from photodedupe.models import DuplicateGroup, PhotoFile
-from photodedupe.reporter import render_report
-from photodedupe.scanner import scan
+from photoprune.models import DuplicateGroup, PhotoFile
+from photoprune.reporter import render_report
+from photoprune.scanner import scan
 
 
 def test_report_is_self_contained(album_dir: Path, tmp_path: Path) -> None:
