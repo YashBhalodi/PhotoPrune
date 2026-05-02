@@ -46,14 +46,41 @@ uv run photoprune ~/Pictures/Trip
 
 ## Cutting a release (maintainers)
 
+The flow is two human steps; the rest is automated.
+
+### 1. Land a release-prep PR
+
+In one PR on `main`:
+
+- Bump `version` in `pyproject.toml` and `__version__` in `photoprune/__init__.py`.
+- Add a new section to `CHANGELOG.md` describing what's in the release.
+- Run `uv lock` so the lockfile picks up the new version.
+- Open + merge the PR (CI must pass).
+
+### 2. Tag
+
 ```bash
+git checkout main && git pull
 git tag vX.Y.Z
 git push origin vX.Y.Z
-gh release create vX.Y.Z --generate-notes
 ```
 
-Then update [the formula](https://github.com/YashBhalodi/homebrew-photoprune/blob/main/Formula/photoprune.rb) with the new version + sha256 (`shasum -a 256 <release-tarball>`).
+The [release workflow](.github/workflows/release.yml) takes over from there:
 
-## Reporting security issues
+- Verifies the tag matches the version in `pyproject.toml` (fails fast if you forgot step 1).
+- Creates a GitHub release with auto-generated notes.
+- Computes the source-tarball sha256.
+- Opens (and admin-merges) a PR on the [homebrew tap](https://github.com/YashBhalodi/homebrew-photoprune) that bumps the formula's `url` and `sha256`.
 
-Please don't open a public issue. See [SECURITY.md](SECURITY.md).
+### One-time setup for the tap update
+
+The cross-repo PR step needs a Personal Access Token (the default `GITHUB_TOKEN` is scoped to a single repo). Without it, the workflow still creates the GitHub release but skips the formula update with a warning.
+
+1. Create a PAT with `repo` scope at <https://github.com/settings/tokens>.
+2. Add it as a repo secret named `TAP_PAT`:
+   ```bash
+   gh secret set TAP_PAT --repo YashBhalodi/PhotoPrune --body "<paste-token>"
+   ```
+
+If you ever lose the secret, re-run those two steps. If the workflow fails for some other reason mid-release, the tag and GitHub release are already created — manually edit the formula via PR as a fallback (the manual flow that was in place pre-automation).
+

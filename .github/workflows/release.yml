@@ -1,0 +1,117 @@
+name: release
+
+# Triggered by pushing a `vX.Y.Z` tag. Does the mechanical post-merge work
+# of cutting a release:
+#   1. Verifies pyproject.toml's version matches the tag.
+#   2. Creates a GitHub release with auto-generated notes.
+#   3. Computes the source tarball's sha256.
+#   4. Opens (and admin-merges) a PR on the homebrew tap that bumps the
+#      formula's url + sha256.
+#
+# One-time setup: a Personal Access Token with `repo` scope must be added
+# to this repo's secrets as `TAP_PAT`. Without it, the formula step is
+# skipped with a warning so the release still succeeds.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write  # for creating the GitHub release on this repo
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify pyproject version matches tag
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PYPROJECT_VERSION=$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)
+          if [ "$TAG_VERSION" != "$PYPROJECT_VERSION" ]; then
+            echo "Tag $GITHUB_REF_NAME (v$TAG_VERSION) does not match pyproject.toml ($PYPROJECT_VERSION)"
+            echo "Bump pyproject.toml + photoprune/__init__.py to $TAG_VERSION before tagging."
+            exit 1
+          fi
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
+
+      - name: Compute tarball sha256
+        id: sha
+        run: |
+          set -euo pipefail
+          TARBALL_URL="https://github.com/${{ github.repository }}/archive/refs/tags/${GITHUB_REF_NAME}.tar.gz"
+          # The auto-generated tarball can take a beat to become available
+          # after `gh release create`.
+          for i in 1 2 3 4 5; do
+            if curl -sSL -f -o /tmp/source.tar.gz "$TARBALL_URL"; then
+              break
+            fi
+            echo "Tarball not ready yet (attempt $i), waiting..."
+            sleep 5
+          done
+          SHA=$(sha256sum /tmp/source.tar.gz | cut -d' ' -f1)
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "Computed sha256: $SHA"
+
+      - name: Update Homebrew tap formula
+        env:
+          GH_TOKEN: ${{ secrets.TAP_PAT }}
+          NEW_TAG: ${{ github.ref_name }}
+          NEW_SHA: ${{ steps.sha.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::warning::TAP_PAT secret not set — skipping formula update."
+            echo "To enable: create a PAT with 'repo' scope at"
+            echo "  https://github.com/settings/tokens"
+            echo "and add it as a TAP_PAT secret on this repo."
+            exit 0
+          fi
+
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/YashBhalodi/homebrew-photoprune.git" tap
+          cd tap
+
+          BRANCH="release/${NEW_TAG}"
+          git checkout -b "$BRANCH"
+
+          # Replace the url + sha256 lines.
+          sed -i "s|archive/refs/tags/v[0-9.]*\.tar\.gz|archive/refs/tags/${NEW_TAG}.tar.gz|" Formula/photoprune.rb
+          sed -i "s|sha256 \"[a-f0-9]\\{64\\}\"|sha256 \"${NEW_SHA}\"|" Formula/photoprune.rb
+
+          # Sanity-check the changes landed.
+          echo "--- updated formula head ---"
+          grep -E "^  url|^  sha256" Formula/photoprune.rb
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/photoprune.rb
+          git commit -m "Bump to ${NEW_TAG}"
+          git push -u origin "$BRANCH"
+
+          PR_URL=$(gh pr create \
+            --title "Bump to ${NEW_TAG}" \
+            --body "Automated bump triggered by https://github.com/${{ github.repository }}/releases/tag/${NEW_TAG}" \
+            --base main \
+            --head "$BRANCH" \
+            --repo YashBhalodi/homebrew-photoprune)
+          echo "Opened tap PR: $PR_URL"
+
+          # Admin-merge to bypass branch protection requirements (PR is
+          # entirely automated and identical for every release).
+          gh pr merge --squash --delete-branch --admin \
+            --repo YashBhalodi/homebrew-photoprune \
+            "$BRANCH"
+          echo "Merged tap PR for ${NEW_TAG}"

@@ -4,6 +4,18 @@ All notable changes to PhotoPrune will be documented here. The format follows [K
 
 ## [Unreleased]
 
+### Tooling
+
+- Added `.github/workflows/release.yml`. Pushing a `vX.Y.Z` tag now creates the GitHub release, computes the tarball sha256, and opens (+ admin-merges) a bump PR on the homebrew tap. Cuts the manual release flow from six steps to two: land a release-prep PR, then push a tag. Requires a one-time `TAP_PAT` secret; instructions in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Removed
+
+- `SECURITY.md`. The repo no longer publishes a vulnerability-handling commitment. GitHub's private vulnerability reporting feature stays available via the issue-template chooser, but we don't promise a response window or scope.
+
+### Docs
+
+- Sample-output paths in the README use `~/Pictures/Trip` instead of city-specific names.
+
 ## [0.5.0] — 2026-05-02
 
 ### Changed (small CLI behavior change)
