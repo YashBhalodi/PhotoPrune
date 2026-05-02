@@ -27,7 +27,7 @@ Selections received. Moved 16 file(s) to ~/Pictures/Trip/.photoprune/_trash
 
 ## Install
 
-### macOS / Linux (Homebrew)
+### macOS (Homebrew)
 
 ```bash
 brew tap YashBhalodi/photoprune
@@ -38,10 +38,14 @@ That's all. The formula brings in Python and the entire ML stack (PyTorch, faiss
 
 If you'd rather not tap, the explicit equivalent is `brew install YashBhalodi/photoprune/photoprune`.
 
-### From source (with [uv](https://docs.astral.sh/uv/))
+> **Linuxbrew users:** the same formula should work via `brew tap YashBhalodi/photoprune && brew install photoprune`, but this hasn't been tested on Linux. The from-source path below is the more idiomatic option for Linux. Windows is not currently supported via Homebrew.
+
+### From source (with [uv](https://docs.astral.sh/uv/)) — macOS, Linux
 
 ```bash
-brew install uv                                  # one-time
+# Install uv if you don't have it (one-time)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
 git clone https://github.com/YashBhalodi/PhotoPrune.git && cd PhotoPrune
 uv tool install --editable ".[heic]"             # exposes photoprune on $PATH
 ```
