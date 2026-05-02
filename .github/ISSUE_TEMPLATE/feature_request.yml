@@ -30,7 +30,7 @@ body:
     attributes:
       label: Pre-flight
       options:
-        - label: I read the [PRD](../PRD.md) and confirm the request is in scope, or I'm explicitly proposing an extension.
+        - label: I read the [README](../README.md) and the request fits PhotoPrune's offline-CLI niche, or I'm explicitly proposing an extension.
           required: true
         - label: I searched existing issues and didn't find a duplicate.
           required: true
