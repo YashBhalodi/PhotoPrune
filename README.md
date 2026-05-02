@@ -63,7 +63,7 @@ PhotoPrune has three modes, picked with `--mode`:
 ### Interactive (default)
 
 ```bash
-cd ~/Pictures/My-Trip
+cd ~/Pictures/Trip
 photoprune
 ```
 
@@ -85,19 +85,19 @@ Both `json` and `text` modes:
 #### `--mode text` sample output
 
 ```
-album:     ~/Pictures/Istanbul
+album:     ~/Pictures/Trip
 threshold: 0.85    scanned: 13    groups: 2    photos in groups: 7
 
 Group 1  [near]  5 photos  max-sim 0.91
-  KEEP  ~/Pictures/Istanbul/IMG_20240905_104130.jpg  4000x1800  3.1MB  sharp 1727  q 0.91
-        ~/Pictures/Istanbul/IMG_20240905_110216.jpg  4608x2080  3.3MB  sharp 130   q 0.54
-        ~/Pictures/Istanbul/IMG_20240905_110122.jpg  4608x2080  3.0MB  sharp 126   q 0.52
-        ~/Pictures/Istanbul/IMG_20240908_115239.jpg  4000x1800  2.2MB  sharp 469   q 0.50
-        ~/Pictures/Istanbul/IMG_20240905_111558.jpg  4000x1800  2.0MB  sharp 205   q 0.41
+  KEEP  ~/Pictures/Trip/IMG_20240905_104130.jpg  4000x1800  3.1MB  sharp 1727  q 0.91
+        ~/Pictures/Trip/IMG_20240905_110216.jpg  4608x2080  3.3MB  sharp 130   q 0.54
+        ~/Pictures/Trip/IMG_20240905_110122.jpg  4608x2080  3.0MB  sharp 126   q 0.52
+        ~/Pictures/Trip/IMG_20240908_115239.jpg  4000x1800  2.2MB  sharp 469   q 0.50
+        ~/Pictures/Trip/IMG_20240905_111558.jpg  4000x1800  2.0MB  sharp 205   q 0.41
 
 Group 2  [near]  2 photos  max-sim 0.86
-  KEEP  ~/Pictures/Istanbul/IMG_20240906_100953.jpg  1800x4000  2.6MB  sharp 321   q 1.00
-        ~/Pictures/Istanbul/IMG_20240906_103755.jpg  1800x4000  2.6MB  sharp 275   q 0.93
+  KEEP  ~/Pictures/Trip/IMG_20240906_100953.jpg  1800x4000  2.6MB  sharp 321   q 1.00
+        ~/Pictures/Trip/IMG_20240906_103755.jpg  1800x4000  2.6MB  sharp 275   q 0.93
 ```
 
 #### `--mode json` sample output
@@ -105,7 +105,7 @@ Group 2  [near]  2 photos  max-sim 0.86
 ```json
 {
   "version": "1",
-  "album_path": "~/Pictures/Istanbul",
+  "album_path": "~/Pictures/Trip",
   "threshold": 0.85,
   "scanned": 13,
   "groups": [
@@ -114,10 +114,10 @@ Group 2  [near]  2 photos  max-sim 0.86
       "detection_type": "near",
       "size": 5,
       "max_similarity": 0.9059,
-      "suggested_keep": "~/Pictures/Istanbul/IMG_20240905_104130.jpg",
+      "suggested_keep": "~/Pictures/Trip/IMG_20240905_104130.jpg",
       "members": [
         {
-          "path": "~/Pictures/Istanbul/IMG_20240905_104130.jpg",
+          "path": "~/Pictures/Trip/IMG_20240905_104130.jpg",
           "size_bytes": 3283035,
           "width": 4000,
           "height": 1800,
@@ -126,7 +126,7 @@ Group 2  [near]  2 photos  max-sim 0.86
           "is_suggested_keep": true
         },
         {
-          "path": "~/Pictures/Istanbul/IMG_20240905_110216.jpg",
+          "path": "~/Pictures/Trip/IMG_20240905_110216.jpg",
           "size_bytes": 3476044,
           "width": 4608,
           "height": 2080,
@@ -266,13 +266,15 @@ The repo ships a `uv.lock` so installs are byte-reproducible.
 
 ### Cutting a release
 
+After landing a PR that bumps `version` in `pyproject.toml` + `__version__` in `photoprune/__init__.py` + a `CHANGELOG.md` entry:
+
 ```bash
+git checkout main && git pull
 git tag vX.Y.Z
 git push origin vX.Y.Z
-gh release create vX.Y.Z --generate-notes
 ```
 
-Then update the formula in [YashBhalodi/homebrew-photoprune](https://github.com/YashBhalodi/homebrew-photoprune) with the new version + tarball sha256 (`shasum -a 256 <release-tarball>`).
+The [release workflow](.github/workflows/release.yml) creates the GitHub release, computes the source-tarball sha256, and opens (and admin-merges) a bump PR on [the tap](https://github.com/YashBhalodi/homebrew-photoprune). See [CONTRIBUTING.md](CONTRIBUTING.md#cutting-a-release-maintainers) for the one-time `TAP_PAT` secret setup.
 
 ## Acknowledgments
 
