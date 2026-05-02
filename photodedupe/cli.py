@@ -2,15 +2,31 @@
 
 from __future__ import annotations
 
-import sys
-import webbrowser
-from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+# faiss-cpu and PyTorch each link their own OpenMP runtime. On macOS
+# (and some Linux configs) loading both with multi-threaded OMP causes
+# a segfault during faiss search(). Pin OMP to a single thread BEFORE
+# either library is imported, then load faiss first.
+import os
 
-import click
-import numpy as np
-from PIL import Image
-from tqdm import tqdm
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
+import faiss as _faiss  # noqa: E402,F401
+
+try:
+    _faiss.omp_set_num_threads(1)
+except Exception:
+    pass
+
+import sys  # noqa: E402
+import webbrowser  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import Dict, Iterable, List, Tuple  # noqa: E402
+
+import click  # noqa: E402
+import numpy as np  # noqa: E402
+from PIL import Image  # noqa: E402
+from tqdm import tqdm  # noqa: E402
 
 from . import __version__
 from .cleaner import cleanup as run_cleanup
@@ -204,9 +220,8 @@ def _run_scan(cfg: Config) -> Path:
     return report_path
 
 
-@click.group(invoke_without_command=True)
-@click.version_option(__version__, prog_name="photodedupe")
-@click.argument("album_path", type=click.Path(), required=False)
+@click.command("scan")
+@click.argument("album_path", type=click.Path())
 @click.option(
     "--model",
     type=click.Choice(["clip", "mobilenet"], case_sensitive=False),
@@ -247,10 +262,8 @@ def _run_scan(cfg: Config) -> Path:
     default=False,
     help="Open the HTML report in a browser after the scan finishes.",
 )
-@click.pass_context
-def main(
-    ctx: click.Context,
-    album_path: str | None,
+def scan_cmd(
+    album_path: str,
     model: str,
     threshold: float,
     phash_threshold: int,
@@ -258,23 +271,7 @@ def main(
     no_cache: bool,
     open_report: bool,
 ) -> None:
-    """PhotoPrune — find near-duplicate photos in a directory."""
-    if ctx.invoked_subcommand is not None:
-        # Subcommand handles its own logic.
-        ctx.obj = {
-            "model": model,
-            "threshold": threshold,
-            "phash_threshold": phash_threshold,
-            "output_dir": output_dir,
-            "no_cache": no_cache,
-            "open_report": open_report,
-        }
-        return
-
-    if album_path is None:
-        click.echo(ctx.get_help())
-        ctx.exit(1)
-
+    """Scan ALBUM_PATH for duplicates and write a review report."""
     cfg = Config(
         album_path=Path(album_path),
         output_dir=Path(output_dir),
@@ -287,7 +284,7 @@ def main(
     _run_scan(cfg)
 
 
-@main.command("cleanup")
+@click.command("cleanup")
 @click.argument("output_dir", type=click.Path(file_okay=False, exists=True))
 @click.option(
     "--dry-run",
@@ -303,6 +300,37 @@ def cleanup_cmd(output_dir: str, dry_run: bool) -> None:
     if skipped:
         click.echo(f"skipped: {skipped} file(s)")
     click.echo(f"audit log: {audit}")
+
+
+class _DefaultGroup(click.Group):
+    """Group that runs `scan` when the first arg is a path, not a known command.
+
+    Lets users type `photodedupe /path/to/photos` while still supporting
+    `photodedupe cleanup ./out` and `photodedupe scan /path/to/photos`.
+    """
+
+    _DEFAULT = "scan"
+
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        if args and not args[0].startswith("-"):
+            known = set(self.commands.keys())
+            if args[0] not in known:
+                args = [self._DEFAULT, *args]
+        return super().parse_args(ctx, args)
+
+
+@click.group(cls=_DefaultGroup)
+@click.version_option(__version__, prog_name="photodedupe")
+def main() -> None:
+    """PhotoPrune — find near-duplicate photos in a directory.
+
+    Run `photodedupe ALBUM_PATH [OPTIONS]` to scan, then
+    `photodedupe cleanup OUTPUT_DIR` to apply your selections.
+    """
+
+
+main.add_command(scan_cmd)
+main.add_command(cleanup_cmd)
 
 
 if __name__ == "__main__":

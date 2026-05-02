@@ -14,8 +14,8 @@ def test_phash_groups_exact_duplicates(album_dir: Path) -> None:
     groups = group_by_phash(photos, threshold=0)
     flat = {p.path for grp in groups for p in grp}
     # a.jpg and a_copy.jpg are byte-identical → same hash.
-    assert any(p.path.endswith("a.jpg") for p in flat)
-    assert any(p.path.endswith("a_copy.jpg") for p in flat)
+    assert any(path.endswith("a.jpg") for path in flat)
+    assert any(path.endswith("a_copy.jpg") for path in flat)
 
 
 def test_phash_grouping_threshold_includes_near(album_dir: Path) -> None:
