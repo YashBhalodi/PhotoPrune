@@ -4,6 +4,29 @@ All notable changes to PhotoPrune will be documented here. The format follows [K
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-05-02
+
+### Removed (breaking, CLI surface only)
+
+Trimmed five CLI flags whose current defaults are the right behavior for everyone today. They'll come back if/when there's a real use case:
+
+- `--model` (was: choose between CLIP and MobileNetV2). CLIP is the only mode now.
+- `--phash-threshold` (Hamming-distance cutoff for the exact-dup pHash pass). Hardcoded to 10.
+- `--no-cache` (re-encode from scratch). Caching is always on; delete `<output-dir>/embeddings_cache.npy` manually if you really need to re-encode.
+- `--no-open` (don't auto-open the report). Auto-open now driven entirely by TTY detection — interactive sessions open the browser, CI / piped runs don't.
+- `--no-wait` (don't block on selections.json). Same TTY-driven logic.
+
+The library API is unaffected — `find_duplicate_groups()` in `photoprune.pipeline` still accepts `model`, `phash_threshold`, and `use_embedding_cache` as keyword arguments.
+
+### Changed
+
+- `photoprune.models.Config` slimmed to `(album_path, output_dir, threshold)` to match the trimmed CLI surface. The dropped fields stay available on `find_duplicate_groups` for library users.
+- `_model_load_notice` now honors `$HF_HOME` (the package init redirects this into the install prefix), so the "Loading from cache" message is accurate again on v0.2+ installs.
+
+### Internal
+
+- Library bootstrap (OMP/faiss-import-order guard, model-cache redirect) moved fully out of `cli.py` in v0.2; this release removes the now-redundant guard duplication.
+
 ## [0.2.0] — 2026-05-02
 
 ### Changed
@@ -28,6 +51,7 @@ Initial public release.
 - HEIC/iPhone photo support via the `[heic]` extra (bundled in the brew install).
 - Homebrew tap at [YashBhalodi/homebrew-photoprune](https://github.com/YashBhalodi/homebrew-photoprune) for one-command install on macOS / Linux.
 
-[Unreleased]: https://github.com/YashBhalodi/PhotoPrune/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/YashBhalodi/PhotoPrune/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/YashBhalodi/PhotoPrune/releases/tag/v0.3.0
 [0.2.0]: https://github.com/YashBhalodi/PhotoPrune/releases/tag/v0.2.0
 [0.1.0]: https://github.com/YashBhalodi/PhotoPrune/releases/tag/v0.1.0
