@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import List, Literal, Optional
@@ -51,13 +51,15 @@ class DuplicateGroup:
 
 @dataclass
 class Config:
+    """CLI-side bundle of user-configurable scan settings.
+
+    Slim by design — only fields the CLI surfaces today. New options can
+    be added back when re-exposed on the command line.
+    """
+
     album_path: Path
     output_dir: Path
-    model: str = "clip"
     threshold: float = 0.94
-    phash_threshold: int = 10
-    no_cache: bool = False
-    open_report: bool = False
 
     def __post_init__(self) -> None:
         self.album_path = Path(self.album_path).expanduser().resolve()

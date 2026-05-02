@@ -10,6 +10,7 @@ both live in `photoprune/__init__.py` so they apply to library use too.
 
 from __future__ import annotations
 
+import os
 import shutil
 import sys
 import time
@@ -32,33 +33,28 @@ from .scanner import heic_supported, scan
 # ---------------------------------------------------------------------------
 
 
-def _model_already_cached(model: str) -> bool:
-    """Best-effort check: are this model's weights already on disk?"""
-    if model == "clip":
-        cache = Path.home() / ".cache" / "huggingface" / "hub"
-        if not cache.exists():
-            return False
-        for child in cache.iterdir():
-            name = child.name.lower()
-            if "clip" in name and "vit" in name and "32" in name:
-                return True
+def _clip_already_cached() -> bool:
+    """Best-effort check: are the CLIP weights already on disk?
+
+    Honors $HF_HOME (the package init redirects this into the install
+    prefix). Falls back to the platform default.
+    """
+    hf_home = os.environ.get("HF_HOME") or str(Path.home() / ".cache" / "huggingface")
+    cache = Path(hf_home) / "hub"
+    if not cache.exists():
         return False
-    if model == "mobilenet":
-        cache = Path.home() / ".cache" / "torch" / "hub" / "checkpoints"
-        if not cache.exists():
-            return False
-        return any("mobilenet_v2" in p.name for p in cache.iterdir())
-    return True
+    for child in cache.iterdir():
+        name = child.name.lower()
+        if "clip" in name and "vit" in name and "32" in name:
+            return True
+    return False
 
 
-def _model_load_notice(model: str) -> None:
-    if _model_already_cached(model):
-        click.echo(f"Loading {model} model from cache ...")
+def _model_load_notice() -> None:
+    if _clip_already_cached():
+        click.echo("Loading model from cache ...")
         return
-    size = "~340 MB" if model == "clip" else "~14 MB"
-    click.echo(
-        f"Loading {model} model — first-run download ({size}, then cached)."
-    )
+    click.echo("Loading model — first-run download (~340 MB, then cached).")
 
 
 def _wait_for_selections(
@@ -130,12 +126,7 @@ def _print_summary(
 # ---------------------------------------------------------------------------
 
 
-def _run_scan(
-    cfg: Config,
-    *,
-    auto_open: bool = True,
-    wait_for_save: bool = True,
-) -> Path:
+def _run_scan(cfg: Config) -> Path:
     if not cfg.album_path.exists():
         raise click.UsageError(f"Album path does not exist: {cfg.album_path}")
     if not cfg.album_path.is_dir():
@@ -143,6 +134,7 @@ def _run_scan(
 
     cfg.output_dir.mkdir(parents=True, exist_ok=True)
     started_at = time.time()
+    interactive = sys.stdout.isatty() and sys.stdin.isatty()
 
     click.echo(f"Scanning {cfg.album_path} ...")
     photos = scan(cfg.album_path, exclude_dirs=[cfg.output_dir])
@@ -157,14 +149,11 @@ def _run_scan(
 
     click.echo(f"Found {len(photos)} image(s).")
 
-    _model_load_notice(cfg.model)
+    _model_load_notice()
     groups = find_duplicate_groups(
         photos,
         output_dir=cfg.output_dir,
-        model=cfg.model,
         threshold=cfg.threshold,
-        phash_threshold=cfg.phash_threshold,
-        use_embedding_cache=not cfg.no_cache,
     )
     photos_in_groups = sum(g.size for g in groups)
 
@@ -188,11 +177,11 @@ def _run_scan(
     click.echo(f"\nFound {len(groups)} duplicate group(s) covering {photos_in_groups} photos.")
     click.echo(f"Report: {report_path}")
 
-    if auto_open:
+    if interactive:
         webbrowser.open(report_path.as_uri())
 
     removed = 0
-    if wait_for_save:
+    if interactive:
         sel = _wait_for_selections(cfg.output_dir, started_at=started_at)
         if sel is None:
             click.echo("\nSkipped cleanup. Apply later with:")
@@ -225,13 +214,6 @@ def _run_scan(
 @click.command("scan")
 @click.argument("album_path", type=click.Path(), required=False, default=None)
 @click.option(
-    "--model",
-    type=click.Choice(["clip", "mobilenet"], case_sensitive=False),
-    default="clip",
-    show_default=True,
-    help="Embedding model: clip (accurate) or mobilenet (fast).",
-)
-@click.option(
     "--threshold",
     type=click.FloatRange(0.0, 1.0),
     default=0.94,
@@ -239,64 +221,26 @@ def _run_scan(
     help="Cosine similarity cutoff for near-duplicate detection.",
 )
 @click.option(
-    "--phash-threshold",
-    type=click.IntRange(0, 64),
-    default=10,
-    show_default=True,
-    help="Hamming-distance cutoff for perceptual-hash duplicate detection.",
-)
-@click.option(
     "--output-dir",
     type=click.Path(),
     default=None,
     help="Where to write report, cache, and trash. Default: <album>/.photoprune/",
 )
-@click.option(
-    "--no-cache",
-    is_flag=True,
-    default=False,
-    help="Re-encode all photos from scratch, ignoring cached embeddings.",
-)
-@click.option(
-    "--no-open",
-    is_flag=True,
-    default=False,
-    help="Do not auto-open the HTML report in a browser.",
-)
-@click.option(
-    "--no-wait",
-    is_flag=True,
-    default=False,
-    help="Don't block waiting for selections.json. Print review instructions and exit.",
-)
 def scan_cmd(
     album_path: Optional[str],
-    model: str,
     threshold: float,
-    phash_threshold: int,
     output_dir: Optional[str],
-    no_cache: bool,
-    no_open: bool,
-    no_wait: bool,
 ) -> None:
     """Scan ALBUM_PATH (default: current directory) for duplicates."""
     album = Path(album_path).expanduser() if album_path else Path.cwd()
     out = Path(output_dir).expanduser() if output_dir else album / ".photoprune"
 
-    interactive = sys.stdout.isatty() and sys.stdin.isatty()
-    auto_open = not no_open and interactive
-    wait = not no_wait and interactive
-
     cfg = Config(
         album_path=album,
         output_dir=out,
-        model=model.lower(),
         threshold=threshold,
-        phash_threshold=phash_threshold,
-        no_cache=no_cache,
-        open_report=auto_open,
     )
-    _run_scan(cfg, auto_open=auto_open, wait_for_save=wait)
+    _run_scan(cfg)
 
 
 # ---------------------------------------------------------------------------
@@ -368,7 +312,7 @@ def main() -> None:
     \b
     Other forms:
         photoprune /path/to/photos          # scan a different directory
-        photoprune --no-wait                # scan only; review later
+        photoprune --threshold 0.90         # flag more aggressively
         photoprune cleanup OUTPUT_DIR       # apply a saved selections.json
     """
 

@@ -59,14 +59,11 @@ photoprune
 
 PhotoPrune scans the current directory, opens an HTML review report in your browser, waits for you to click **Save & move N to trash**, then moves the flagged files into `<album>/.photoprune/_trash/`. Press <kbd>Ctrl</kbd>+<kbd>C</kbd> at any point to skip cleanup — the report and selections stay put for you to apply later with `photoprune cleanup OUTPUT_DIR`.
 
-### Common flags
+### Common forms
 
 ```bash
 photoprune /path/to/photos          # scan a different directory
-photoprune --model mobilenet        # faster, less accurate model
 photoprune --threshold 0.90         # flag more aggressively (default 0.94)
-photoprune --no-open                # don't auto-open the report
-photoprune --no-wait                # don't block on selections — print instructions and exit
 photoprune cleanup ./.photoprune    # apply a previously saved selections.json
 ```
 
@@ -75,13 +72,10 @@ photoprune cleanup ./.photoprune    # apply a previously saved selections.json
 | Flag | Default | Description |
 |------|---------|-------------|
 | `album_path` | `.` | Directory to scan |
-| `--model` | `clip` | `clip` (accurate, ViT-B/32) or `mobilenet` (fast, smaller) |
 | `--threshold` | `0.94` | Cosine similarity cutoff for near-duplicate detection (0.0–1.0) |
-| `--phash-threshold` | `10` | Hamming distance for exact-dupe detection |
 | `--output-dir` | `<album>/.photoprune/` | Where the report, cache, and trash live |
-| `--no-cache` | off | Re-encode every photo from scratch |
-| `--no-open` | off | Don't auto-open the HTML report |
-| `--no-wait` | off | Don't block waiting for `selections.json` |
+
+When stdin/stdout aren't a TTY (e.g., piped output, CI runs), PhotoPrune skips the auto-open and the watch-for-selections steps and just prints the report path so you can review later.
 
 ## How it works
 
